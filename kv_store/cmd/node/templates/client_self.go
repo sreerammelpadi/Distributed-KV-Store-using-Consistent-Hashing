@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	pb "node/pb"
+	pb "kv_store/api/pb/coordinator"
 	"time"
 
 	"google.golang.org/grpc"
@@ -12,15 +12,15 @@ import (
 
 func main() {
 	conn, _ := grpc.NewClient(
-		"dns:///localhost:50051",
+		"dns:///localhost:50052",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer conn.Close()
-	c := pb.NewKVStoreClient(conn)
+	c := pb.NewCoordinatorClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	resp, err := c.Put(ctx, &pb.Item{Key: "1", Value: "one"})
+	resp, err := c.Get(ctx, &pb.Key{Key: "1"})
 
 	fmt.Printf("Put Response: %v, Error: %v", resp, err)
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	pb "kv_store/api/pb"
+	pb "kv_store/api/pb/node"
 	"net"
 	"sync"
 
