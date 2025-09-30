@@ -12,7 +12,7 @@ import (
 
 func main() {
 	conn, _ := grpc.NewClient(
-		"dns:///localhost:50052",
+		"dns:///localhost:50055",
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	defer conn.Close()
@@ -20,7 +20,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	resp, err := c.Get(ctx, &pb.Key{Key: "1"})
+	resp, err := c.Put(ctx, &pb.Item{Key: "1", Value: "one"})
 
 	fmt.Printf("Put Response: %v, Error: %v", resp, err)
 }
