@@ -9,4 +9,7 @@ Going ahead, planning to add auto-scaling (and containerization), health checks,
 
 
 
-![img]
+![](media/Dist_KV_Store.png)
+
+
+
