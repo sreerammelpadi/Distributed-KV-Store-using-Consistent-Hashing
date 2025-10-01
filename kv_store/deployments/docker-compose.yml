@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  coordinator:
+    build:
+      context: ..
+      dockerfile: ./deployments/docker/coordinator.Dockerfile
+    image: kv-coordinator
+    container_name: kv-coordinator
+    ports:
+      - "50051:50051"  # Coordinator server uses 50051
+    networks:
+      - kv-network
+
+  node1:
+    build:
+      context: ..
+      dockerfile: ./deployments/docker/node.Dockerfile
+    image: kv-node
+    container_name: kv-node1
+    depends_on:
+      - coordinator
+    environment:
+      - NODE_ID=1
+      - COORDINATOR_ADDR=kv-coordinator:50051  # Internal service name for communication
+    networks:
+      - kv-network
+
+  node2:
+    build:
+      context: ..
+      dockerfile: ./deployments/docker/node.Dockerfile
+    image: kv-node
+    container_name: kv-node2
+    depends_on:
+      - coordinator
+    environment:
+      - NODE_ID=2
+      - COORDINATOR_ADDR=kv-coordinator:50051
+    networks:
+      - kv-network
+
+  node3:
+    build:
+      context: ..
+      dockerfile: ./deployments/docker/node.Dockerfile
+    image: kv-node
+    container_name: kv-node3
+    depends_on:
+      - coordinator
+    environment:
+      - NODE_ID=3
+      - COORDINATOR_ADDR=kv-coordinator:50051
+    networks:
+      - kv-network
+
+networks:
+  kv-network:
+    driver: bridge

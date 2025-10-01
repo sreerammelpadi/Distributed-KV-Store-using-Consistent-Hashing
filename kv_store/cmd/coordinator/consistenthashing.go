@@ -1,7 +1,5 @@
 // // GetNode returns the node that needs to contain (or has) the key
-// func GetNode(key *pb.Key) int {
-// 	return 0
-// }
+//
 
 // import (
 // 	"crypto/md5"
@@ -40,6 +38,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	pb "kv_store/api/pb/coordinator"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,6 +52,10 @@ type HashRing struct {
 	vnodeMap map[uint32]string   // hash -> real node
 	nodes    map[string]struct{} // set of real nodes
 	mu       sync.RWMutex
+}
+
+func GetNode(key *pb.Key) int {
+	return 0
 }
 
 // NewHashRing creates a new ring. replicas = number of virtual nodes per real node.
@@ -237,7 +240,7 @@ func printMoves(prefix string, moves map[string]map[string][]string) {
 }
 
 // Demo main: create ring, create sample data, add node, compute moves, remove node, compute moves.
-func main() {
+func consistenthashing() {
 	// Create a ring with 100 virtual nodes per real node
 	ring := NewHashRing(100)
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	pb "kv_store/api/pb/coordinator"
 	clpb "kv_store/api/pb/node"
@@ -21,21 +22,55 @@ type server struct {
 
 func (s *server) Put(ctx context.Context, item *pb.Item) (*pb.Response, error) {
 	node := GetNode(&pb.Key{Key: item.Key})
-	suc, err := s.nodes[node].Put(ctx, &clpb.Item{Key: item.Key, Value: item.Value})
-	// time.Sleep(time.Duration(2 * time.Second))
-	return &pb.Response{Success: suc.Success, Message: suc.Message}, err
+	client, ok := s.nodes[node]
+	if !ok || client == nil {
+		msg := fmt.Sprintf("no client available for node %d", node)
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
+
+	suc, err := client.Put(ctx, &clpb.Item{Key: item.Key, Value: item.Value})
+	if err != nil {
+		return &pb.Response{Success: false, Message: err.Error()}, err
+	}
+	if suc == nil {
+		msg := "nil response from node Put"
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
+	return &pb.Response{Success: suc.Success, Message: suc.Message}, nil
 }
 
 func (s *server) Get(ctx context.Context, key *pb.Key) (*pb.Value, error) {
 	node := GetNode(key)
-	resp, err := s.nodes[node].Get(ctx, &clpb.Key{Key: key.Key})
-	return &pb.Value{Value: resp.Value, Found: resp.Found}, err
+	client, ok := s.nodes[node]
+	if !ok || client == nil {
+		return &pb.Value{Value: "", Found: false}, fmt.Errorf("no client available for node %d", node)
+	}
+	resp, err := client.Get(ctx, &clpb.Key{Key: key.Key})
+	if err != nil {
+		return &pb.Value{Value: "", Found: false}, err
+	}
+	if resp == nil {
+		return &pb.Value{Value: "", Found: false}, errors.New("nil response from node Get")
+	}
+	return &pb.Value{Value: resp.Value, Found: resp.Found}, nil
 }
 
 func (s *server) Delete(ctx context.Context, key *pb.Key) (*pb.Response, error) {
 	node := GetNode(key)
-	resp, err := s.nodes[node].Delete(ctx, &clpb.Key{Key: key.Key})
-	return &pb.Response{Success: resp.Success, Message: resp.Message}, err
+	client, ok := s.nodes[node]
+	if !ok || client == nil {
+		msg := fmt.Sprintf("no client available for node %d", node)
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
+	resp, err := client.Delete(ctx, &clpb.Key{Key: key.Key})
+	if err != nil {
+		return &pb.Response{Success: false, Message: err.Error()}, err
+	}
+	if resp == nil {
+		msg := "nil response from node Delete"
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
+	return &pb.Response{Success: resp.Success, Message: resp.Message}, nil
 }
 
 func main() {
@@ -51,8 +86,9 @@ func main() {
 	}
 
 	for node, addr := range cfg.Nodes {
+		fmt.Println(addr)
 		conn, err := grpc.NewClient(
-			"dns:///localhost"+addr,
+			addr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		if err != nil {
@@ -64,7 +100,7 @@ func main() {
 
 	pb.RegisterCoordinatorServer(grpcServer, s)
 
-	lis, _ := net.Listen("tcp", ":50055")
+	lis, _ := net.Listen("tcp", ":50051")
 
 	fmt.Println("Coordinator Listening")
 	err2 := grpcServer.Serve(lis)
