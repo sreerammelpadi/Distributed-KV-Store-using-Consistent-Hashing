@@ -6,17 +6,10 @@ import (
 	"fmt"
 	pb "kv_store/api/pb/coordinator"
 	clpb "kv_store/api/pb/node"
-	config "kv_store/config"
-
-	"net"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type server struct {
 	pb.UnimplementedCoordinatorServer
-	data  map[string]string
 	nodes map[string]clpb.KVStoreClient
 	ring  *HashRing
 }
@@ -24,7 +17,7 @@ type server struct {
 func (s *server) Put(ctx context.Context, item *pb.Item) (*pb.Response, error) {
 	node, ok := s.ring.GetNode(item.Key)
 	if !ok {
-		msg := fmt.Sprintf("Error in getting node from HashRing")
+		msg := "error in getting node from HashRing"
 		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
 	}
 	client, ok := s.nodes[node]
@@ -83,43 +76,4 @@ func (s *server) Delete(ctx context.Context, key *pb.Key) (*pb.Response, error) 
 		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
 	}
 	return &pb.Response{Success: resp.Success, Message: resp.Message}, nil
-}
-
-func main() {
-	cfg, err := config.LoadConfig()
-	ring := NewHashRing(100)
-
-	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
-		return
-	}
-	grpcServer := grpc.NewServer()
-	s := &server{
-		data:  make(map[string]string),
-		nodes: make(map[string]clpb.KVStoreClient),
-		ring:  ring,
-	}
-
-	for node, addr := range cfg.Nodes {
-		fmt.Println(addr)
-		ring.AddNode(addr)
-		conn, err := grpc.NewClient(
-			addr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			fmt.Printf("Error: Client connection fault for node: {%v : %v} : %v", node, addr, err)
-		}
-
-		s.nodes[addr] = clpb.NewKVStoreClient(conn)
-	}
-
-	pb.RegisterCoordinatorServer(grpcServer, s)
-
-	lis, _ := net.Listen("tcp", ":50051")
-
-	fmt.Println("Coordinator Listening")
-	err2 := grpcServer.Serve(lis)
-	fmt.Print(err2)
-
 }
