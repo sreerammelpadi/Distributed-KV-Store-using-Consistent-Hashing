@@ -20,11 +20,30 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	resp, err := c.Put(ctx, &pb.Item{Key: "1", Value: "one"})
+	// start := time.Now()
+	// resp, err := c.Put(ctx, &pb.Item{Key: "3", Value: "three"})
+	// elapsed := time.Since(start)
+
+	// if err != nil {
+	// 	fmt.Printf("Put Error: %v; elapsed=%v\n", err, elapsed)
+	// 	return
+	// }
+
+	// fmt.Printf("Put Response: %v; elapsed=%v\n", resp, elapsed)
+
+	start := time.Now()
+	resp, err := c.Get(ctx, &pb.Key{Key: "4"})
+	elapsed := time.Since(start)
+
 	if err != nil {
-		fmt.Printf("Error: %v", err)
+		fmt.Printf("Get Error: %v; elapsed=%v\n", err, elapsed)
 		return
 	}
 
-	fmt.Printf("Put Response: %v, Error: %v", resp, err)
+	if !resp.Found {
+		fmt.Printf("Get Response: key not found\n")
+	} else {
+		fmt.Printf("Get Response: %v; elapsed=%v\n", resp, elapsed)
+	}
+
 }

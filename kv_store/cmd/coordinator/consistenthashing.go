@@ -1,44 +1,9 @@
-// // GetNode returns the node that needs to contain (or has) the key
-//
-
-// import (
-// 	"crypto/md5"
-// 	"encoding/binary"
-// 	"fmt"
-// )
-
-// // HashKey returns a 32-bit hash of a string using MD5
-// func HashKey(key string) uint32 {
-// 	hash := md5.Sum([]byte(key)) // 16 bytes
-// 	// Take the first 4 bytes and convert to uint32
-// 	return binary.BigEndian.Uint32(hash[:4])
-// }
-
-// // GetNode returns which node a key maps to, given a slice of nodes
-// func GetNode(key string, nodes []string) string {
-// 	hash := HashKey(key)
-// 	fmt.Printf("Hash: %v\n", hash)
-// 	idx := hash % uint32(len(nodes))
-// 	return nodes[idx]
-// }
-
-// func main() {
-// 	nodes := []string{"NodeA", "NodeB", "NodeC"}
-
-// 	keys := []string{"apple", "banana", "cherry", "date", "YOLO"}
-// 	for _, k := range keys {
-// 		node := GetNode(k, nodes)
-// 		fmt.Printf("Key %s → %s\n", k, node)
-// 	}
-// }
-
 package main
 
 import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	pb "kv_store/api/pb/coordinator"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,10 +17,6 @@ type HashRing struct {
 	vnodeMap map[uint32]string   // hash -> real node
 	nodes    map[string]struct{} // set of real nodes
 	mu       sync.RWMutex
-}
-
-func GetNode(key *pb.Key) int {
-	return 0
 }
 
 // NewHashRing creates a new ring. replicas = number of virtual nodes per real node.

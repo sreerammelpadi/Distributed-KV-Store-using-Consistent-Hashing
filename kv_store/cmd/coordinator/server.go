@@ -17,17 +17,21 @@ import (
 type server struct {
 	pb.UnimplementedCoordinatorServer
 	data  map[string]string
-	nodes map[int]clpb.KVStoreClient
+	nodes map[string]clpb.KVStoreClient
+	ring  *HashRing
 }
 
 func (s *server) Put(ctx context.Context, item *pb.Item) (*pb.Response, error) {
-	node := GetNode(&pb.Key{Key: item.Key})
+	node, ok := s.ring.GetNode(item.Key)
+	if !ok {
+		msg := fmt.Sprintf("Error in getting node from HashRing")
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
 	client, ok := s.nodes[node]
 	if !ok || client == nil {
 		msg := fmt.Sprintf("no client available for node %d", node)
 		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
 	}
-
 	suc, err := client.Put(ctx, &clpb.Item{Key: item.Key, Value: item.Value})
 	if err != nil {
 		return &pb.Response{Success: false, Message: err.Error()}, err
@@ -40,7 +44,11 @@ func (s *server) Put(ctx context.Context, item *pb.Item) (*pb.Response, error) {
 }
 
 func (s *server) Get(ctx context.Context, key *pb.Key) (*pb.Value, error) {
-	node := GetNode(key)
+	node, ok := s.ring.GetNode(key.Key)
+	if !ok {
+		msg := fmt.Sprintf("Error in getting node from HashRing")
+		return &pb.Value{Value: "", Found: false}, errors.New(msg)
+	}
 	client, ok := s.nodes[node]
 	if !ok || client == nil {
 		return &pb.Value{Value: "", Found: false}, fmt.Errorf("no client available for node %d", node)
@@ -56,7 +64,11 @@ func (s *server) Get(ctx context.Context, key *pb.Key) (*pb.Value, error) {
 }
 
 func (s *server) Delete(ctx context.Context, key *pb.Key) (*pb.Response, error) {
-	node := GetNode(key)
+	node, ok := s.ring.GetNode(key.Key)
+	if !ok {
+		msg := fmt.Sprintf("Error in getting node from HashRing")
+		return &pb.Response{Success: false, Message: msg}, errors.New(msg)
+	}
 	client, ok := s.nodes[node]
 	if !ok || client == nil {
 		msg := fmt.Sprintf("no client available for node %d", node)
@@ -75,6 +87,8 @@ func (s *server) Delete(ctx context.Context, key *pb.Key) (*pb.Response, error) 
 
 func main() {
 	cfg, err := config.LoadConfig()
+	ring := NewHashRing(100)
+
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		return
@@ -82,11 +96,13 @@ func main() {
 	grpcServer := grpc.NewServer()
 	s := &server{
 		data:  make(map[string]string),
-		nodes: make(map[int]clpb.KVStoreClient),
+		nodes: make(map[string]clpb.KVStoreClient),
+		ring:  ring,
 	}
 
 	for node, addr := range cfg.Nodes {
 		fmt.Println(addr)
+		ring.AddNode(addr)
 		conn, err := grpc.NewClient(
 			addr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -95,7 +111,7 @@ func main() {
 			fmt.Printf("Error: Client connection fault for node: {%v : %v} : %v", node, addr, err)
 		}
 
-		s.nodes[node] = clpb.NewKVStoreClient(conn)
+		s.nodes[addr] = clpb.NewKVStoreClient(conn)
 	}
 
 	pb.RegisterCoordinatorServer(grpcServer, s)
