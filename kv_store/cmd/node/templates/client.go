@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package main
 
 import (
@@ -5,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	pb "node/pb" // replace with your module path
+	pb "kv_store/api/pb/Node" // replace with your module path
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
