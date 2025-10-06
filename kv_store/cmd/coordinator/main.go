@@ -16,6 +16,7 @@ func getServerObj(cfg *config.Config, ring *HashRing) *server {
 	s := &server{
 		nodes: make(map[string]clpb.KVStoreClient),
 		ring:  ring,
+		cfg:   cfg,
 	}
 
 	for node, addr := range cfg.Nodes {

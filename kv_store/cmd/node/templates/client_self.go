@@ -72,9 +72,6 @@ func main() {
 		}
 	}
 
-	// Dial coordinator with timeout and WithBlock so we know connection status
-	// dialCtx, dialCancel := context.WithTimeout(context.Background(), *timeout)
-	// defer dialCancel()
 	conn, err := grpc.NewClient(
 		*addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

@@ -7,7 +7,12 @@ import (
 )
 
 type Config struct {
-	Nodes []string `mapstructure:"nodes"`
+	Nodes       []string `mapstructure:"nodes"`
+	Consistency struct {
+		N int `mapstructure:"n"`
+		W int `mapstructure:"w"`
+		R int `mapstructure:"r"`
+	} `mapstructure:"consistency"`
 }
 
 func LoadConfig() (*Config, error) {
