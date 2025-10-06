@@ -17,9 +17,9 @@ type server struct {
 }
 
 type response struct {
-	Sucess bool
-	Value  string
-	Err    error
+	Success bool
+	Value   string
+	Err     error
 }
 
 type QuorumFunc func(ctx context.Context, client clpb.KVStoreClient) (bool, string, error)
@@ -33,17 +33,17 @@ func (s *server) doQuorum(ctx context.Context, key string, quorum int, fn Quorum
 			client, ok := s.nodes[n]
 			if !ok {
 				ackCh <- response{
-					Sucess: false,
-					Value:  "",
-					Err:    errors.New("Node doesn't exist"),
+					Success: false,
+					Value:   "",
+					Err:     errors.New("node doesn't exist"),
 				}
 				return
 			}
 			suc, val, err := fn(ctx, client)
 			ackCh <- response{
-				Sucess: suc,
-				Value:  val,
-				Err:    err,
+				Success: suc,
+				Value:   val,
+				Err:     err,
 			}
 		}(node)
 	}
@@ -60,9 +60,9 @@ outloop:
 			totalresp++
 			if resp.Err == nil {
 				acks++
-				found = resp.Sucess
-				if found {
-					value = resp.Value // for now take the latest value if conflict found
+				if resp.Success {
+					found = true
+					value = resp.Value // choose last successful value observed
 				}
 			}
 		case <-timeout:
