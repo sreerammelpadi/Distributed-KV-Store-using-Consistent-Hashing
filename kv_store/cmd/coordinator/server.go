@@ -19,6 +19,7 @@ type server struct {
 type response struct {
 	Success bool
 	Value   string
+	Node    string
 	Err     error
 }
 
@@ -28,22 +29,33 @@ func (s *server) doQuorum(ctx context.Context, key string, quorum int, fn Quorum
 	nodes := s.ring.GetNodesForKey(key, s.cfg.Consistency.N)
 
 	ackCh := make(chan response, len(nodes))
+
+	// Launch RPCs to all nodes. The first W successful acks will allow us to
+	// return to the client; remaining node RPCs will continue in background
+	// using a separate background context so they are not canceled when the
+	// incoming request ctx is done.
 	for _, node := range nodes {
 		go func(n string) {
 			client, ok := s.nodes[n]
 			if !ok {
-				ackCh <- response{
-					Success: false,
-					Value:   "",
-					Err:     errors.New("node doesn't exist"),
+				// non-blocking send to ackCh to avoid blocking if nobody is
+				// reading it anymore; ackCh is buffered so the first few will succeed
+				select {
+				case ackCh <- response{Success: false, Value: "", Node: n, Err: errors.New("node doesn't exist")}:
+				default:
 				}
 				return
 			}
+
+			// Use the incoming ctx for fast-path synchronous calls so that a
+			// slow node doesn't hold up getting the quorum. For background
+			// replication we will issue a separate call using a background ctx.
 			suc, val, err := fn(ctx, client)
-			ackCh <- response{
-				Success: suc,
-				Value:   val,
-				Err:     err,
+			select {
+			case ackCh <- response{Success: suc, Value: val, Node: n, Err: err}:
+			default:
+				// If ackCh is full (we returned early and nobody is draining it),
+				// drop the diagnostic ack to avoid blocking.
 			}
 		}(node)
 	}
@@ -53,8 +65,12 @@ func (s *server) doQuorum(ctx context.Context, key string, quorum int, fn Quorum
 	found := false
 	value := ""
 	timeout := time.After(1 * time.Second)
+
+	// drain until we reach quorum or timeout; after quorum is reached we
+	// return but continue background replication below
+	acked := make(map[string]bool, len(nodes))
 outloop:
-	for acks < s.cfg.Consistency.W && totalresp < s.cfg.Consistency.N {
+	for acks < quorum && totalresp < len(nodes) {
 		select {
 		case resp := <-ackCh:
 			totalresp++
@@ -62,7 +78,8 @@ outloop:
 				acks++
 				if resp.Success {
 					found = true
-					value = resp.Value // choose last successful value observed
+					value = resp.Value // Use last value for now
+					acked[resp.Node] = true
 				}
 			}
 		case <-timeout:
@@ -71,9 +88,42 @@ outloop:
 	}
 
 	if acks < quorum {
-		msg := "quorum failed"
-		return false, "", errors.New(msg)
+		return false, "", errors.New("quorum failed")
 	}
+
+	// We have quorum. Spawn background replication for the nodes that either
+	// didn't ack yet or were slower — use a background context with timeout so
+	// background operations are independent of the request ctx.
+	go func(key string, nodes []string) {
+		bgTimeout := 5 * time.Second
+
+		// If the original request context is still alive, the original
+		// in-flight RPC may still complete for the remaining nodes. Only
+		// perform background replication if the original context is already
+		// cancelled/expired to avoid duplicate calls.
+		if ctx.Err() == nil {
+			return
+		}
+
+		for _, n := range nodes {
+			// Skip nodes that already succeeded
+			if acked[n] {
+				continue
+			}
+			// For each remaining node, issue a background call with its own context.
+			go func(n string) {
+				client, ok := s.nodes[n]
+				if !ok {
+					return
+				}
+				bgCtx, cancel := context.WithTimeout(context.Background(), bgTimeout)
+				defer cancel()
+				// Use fn but with bgCtx; ignore return values and errors here.
+				_, _, _ = fn(bgCtx, client)
+			}(n)
+		}
+	}(key, nodes)
+
 	return found, value, nil
 }
 
