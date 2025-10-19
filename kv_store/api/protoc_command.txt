@@ -1,2 +1,0 @@
-Example:
-protoc --go_out=api/pb/coordinator --go-grpc_out=api/pb/coordinator api/coordinator.proto
