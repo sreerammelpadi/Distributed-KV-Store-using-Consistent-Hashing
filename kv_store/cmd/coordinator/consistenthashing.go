@@ -12,23 +12,23 @@ import (
 
 // HashRing implements a consistent hashing ring with virtual nodes.
 type HashRing struct {
-	replicas int                 // number of virtual nodes per real node
-	ring     []uint32            // sorted hash ring (virtual node hashes)
-	vnodeMap map[uint32]string   // hash -> real node
-	nodes    map[string]struct{} // set of real nodes
-	mu       sync.RWMutex
+	virtualnodes int                 // number of virtual nodes per real node
+	ring         []uint32            // sorted hash ring (virtual node hashes)
+	vnodeMap     map[uint32]string   // hash -> real node
+	nodes        map[string]struct{} // set of real nodes
+	mu           sync.RWMutex
 }
 
-// NewHashRing creates a new ring. replicas = number of virtual nodes per real node.
-func NewHashRing(replicas int) *HashRing {
-	if replicas <= 0 {
-		replicas = 100
+// NewHashRing creates a new ring. virtualnodes = number of virtual nodes per real node.
+func NewHashRing(virtualnodes int) *HashRing {
+	if virtualnodes <= 0 {
+		virtualnodes = 100
 	}
 	return &HashRing{
-		replicas: replicas,
-		ring:     make([]uint32, 0),
-		vnodeMap: make(map[uint32]string),
-		nodes:    make(map[string]struct{}),
+		virtualnodes: virtualnodes,
+		ring:         make([]uint32, 0),
+		vnodeMap:     make(map[uint32]string),
+		nodes:        make(map[string]struct{}),
 	}
 }
 
@@ -38,7 +38,7 @@ func md5ToUint32(key string) uint32 {
 	return binary.BigEndian.Uint32(sum[:4])
 }
 
-// generateVNodeHash returns the hash for a given node + replica index
+// generateVNodeHash returns the hash for a given node + virtualnode index
 func vnodeHash(node string, idx int) uint32 {
 	return md5ToUint32(node + "#" + strconv.Itoa(idx))
 }
@@ -53,8 +53,8 @@ func (hr *HashRing) AddNode(node string) {
 	}
 	hr.nodes[node] = struct{}{}
 
-	inserted := make([]uint32, 0, hr.replicas)
-	for i := 0; i < hr.replicas; i++ {
+	inserted := make([]uint32, 0, hr.virtualnodes)
+	for i := 0; i < hr.virtualnodes; i++ {
 		h := vnodeHash(node, i)
 		// map the vnode hash to the real node
 		hr.vnodeMap[h] = node
@@ -76,8 +76,8 @@ func (hr *HashRing) RemoveNode(node string) {
 	delete(hr.nodes, node)
 
 	// collect hashes to remove
-	toRemove := make(map[uint32]struct{}, hr.replicas)
-	for i := 0; i < hr.replicas; i++ {
+	toRemove := make(map[uint32]struct{}, hr.virtualnodes)
+	for i := 0; i < hr.virtualnodes; i++ {
 		h := vnodeHash(node, i)
 		toRemove[h] = struct{}{}
 		delete(hr.vnodeMap, h)
