@@ -1,7 +1,9 @@
 nodes:
-    - "node1:50051"
-    - "node2:50051"
-    - "node3:50051"
+    - "deployments-node-1:50051"
+    - "deployments-node-2:50051"
+    - "deployments-node-3:50051"
+    - "deployments-node-4:50051"
+    - "deployments-node-5:50051"
 consistency:
     n: 3
     w: 2

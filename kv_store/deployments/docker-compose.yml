@@ -10,44 +10,15 @@ services:
     networks:
       - kv-network
 
-  node1:
+  node:
     build:
       context: ..
       dockerfile: ./deployments/docker/node.Dockerfile
     image: kv-node
-    container_name: kv-node1
     depends_on:
       - coordinator
     environment:
-      - NODE_ID=1
-      - COORDINATOR_ADDR=kv-coordinator:50051  # Internal service name for communication
-    networks:
-      - kv-network
-
-  node2:
-    build:
-      context: ..
-      dockerfile: ./deployments/docker/node.Dockerfile
-    image: kv-node
-    container_name: kv-node2
-    depends_on:
-      - coordinator
-    environment:
-      - NODE_ID=2
-      - COORDINATOR_ADDR=kv-coordinator:50051
-    networks:
-      - kv-network
-
-  node3:
-    build:
-      context: ..
-      dockerfile: ./deployments/docker/node.Dockerfile
-    image: kv-node
-    container_name: kv-node3
-    depends_on:
-      - coordinator
-    environment:
-      - NODE_ID=3
+      - NODE_ID={{.Service.Name}}-{{.Task.Slot}}
       - COORDINATOR_ADDR=kv-coordinator:50051
     networks:
       - kv-network

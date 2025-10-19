@@ -1,3 +1,6 @@
-docker-compose up --build --remove-orphans
+// docker-compose up --build --remove-orphans
 
-docker-compose up --build --force-recreate --no-deps --remove-orphans
+// docker-compose up --build --force-recreate --no-deps --remove-orphans
+
+// Set the number of nodes here, and then configure config.yaml file
+docker compose up --build  --remove-orphans --scale node=5
